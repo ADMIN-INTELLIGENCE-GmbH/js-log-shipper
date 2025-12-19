@@ -1,5 +1,22 @@
 import { LogContext } from './types';
 
+export function safeStringify(obj: any): string {
+  const cache = new Set();
+  try {
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (cache.has(value)) {
+          return '[Circular]';
+        }
+        cache.add(value);
+      }
+      return value;
+    });
+  } catch (e) {
+    return '[Stringify Error]';
+  }
+}
+
 export interface StackFrame {
   functionName: string;
   fileName: string;

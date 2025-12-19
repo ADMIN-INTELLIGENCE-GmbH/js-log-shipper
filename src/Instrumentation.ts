@@ -1,5 +1,5 @@
 import { Logger } from './Logger';
-import { errorToContext, getSourceFromStack } from './utils';
+import { errorToContext, getSourceFromStack, safeStringify } from './utils';
 
 export interface InstrumentationConfig {
   console?: boolean;
@@ -114,7 +114,7 @@ export class Instrumentation {
 
           // Format message
           const message = args.map(arg => 
-            typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            typeof arg === 'object' ? safeStringify(arg) : String(arg)
           ).join(' ');
 
           // Create context from args if there are errors

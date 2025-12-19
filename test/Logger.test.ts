@@ -47,12 +47,17 @@ describe('Logger', () => {
     expect((logger as any).buffer[0].message).toBe('Test message');
   });
 
-  it('should flush when batch size is reached', () => {
+  it('should flush when batch size is reached', async () => {
     logger.info('Message 1');
     expect((logger as any).buffer).toHaveLength(1);
     
     logger.info('Message 2');
-    // Should have flushed now
+    // Should have flushed now, but it's async
+    // Wait for microtasks to process
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
     expect((logger as any).buffer).toHaveLength(0);
     
     expect(sendMock).toHaveBeenCalledTimes(1);
@@ -62,11 +67,15 @@ describe('Logger', () => {
     ]));
   });
 
-  it('should flush on interval', () => {
+  it('should flush on interval', async () => {
     logger.info('Message 1');
     expect((logger as any).buffer).toHaveLength(1);
 
     vi.advanceTimersByTime(1000);
+    // Wait for microtasks
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect((logger as any).buffer).toHaveLength(0);
     expect(sendMock).toHaveBeenCalledTimes(1);

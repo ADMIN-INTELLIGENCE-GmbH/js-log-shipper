@@ -8,6 +8,7 @@ export class Logger {
   private flushTimer: ReturnType<typeof setInterval> | null = null;
   private static instance: Logger;
   private recentLogs: Map<string, number> = new Map();
+  private isFlushing = false;
 
   constructor(config: LoggerConfig) {
     this.config = {
@@ -112,17 +113,31 @@ export class Logger {
   }
 
   public async flush(): Promise<void> {
-    if (this.buffer.length === 0) return;
+    if (this.buffer.length === 0 || this.isFlushing) return;
 
-    const logsToSend = [...this.buffer];
-    this.buffer = [];
+    this.isFlushing = true;
+    const batchSize = this.config.batchSize ?? 10;
+    // Take a batch, not everything, to avoid huge payloads
+    const logsToSend = this.buffer.slice(0, batchSize);
 
-    const success = await this.transport.send(logsToSend);
-    
-    if (!success) {
-      // If failed, put them back at the start of the buffer (optional, might cause overflow)
-      // For now, we'll just drop them to avoid memory leaks if the server is down for long
-      console.warn('[Logger] Dropped logs due to transmission failure');
+    try {
+      const success = await this.transport.send(logsToSend);
+      
+      if (success) {
+        // Remove sent logs
+        this.buffer.splice(0, logsToSend.length);
+      } else {
+        console.warn('[Logger] Failed to flush logs, keeping in buffer');
+      }
+    } catch (e) {
+      console.error('[Logger] Error during flush', e);
+    } finally {
+      this.isFlushing = false;
+      
+      // If we have more logs, try to flush again immediately
+      if (this.buffer.length >= batchSize) {
+        setTimeout(() => this.flush(), 0);
+      }
     }
   }
 

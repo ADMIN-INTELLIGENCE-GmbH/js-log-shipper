@@ -6,9 +6,9 @@ import { Transport } from '../src/Transport';
 const sendMock = vi.fn().mockResolvedValue(true);
 vi.mock('../src/Transport', () => {
   return {
-    Transport: vi.fn().mockImplementation(() => ({
-      send: sendMock,
-    })),
+    Transport: vi.fn().mockImplementation(function () {
+      return { send: sendMock };
+    }),
   };
 });
 

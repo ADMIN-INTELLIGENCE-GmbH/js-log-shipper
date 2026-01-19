@@ -52,6 +52,12 @@ export interface LoggerConfig {
   batchSize?: number;
 
   /**
+   * Maximum number of logs to keep in buffer. Defaults to 1000.
+   * If exceeded, oldest logs are dropped.
+   */
+  maxBufferSize?: number;
+
+  /**
    * Number of retries for failed requests. Defaults to 3.
    */
   retries?: number;
@@ -70,4 +76,15 @@ export interface LoggerConfig {
    * Time window in milliseconds for deduplication. Defaults to 1000ms.
    */
   deduplicationWindow?: number;
+
+  /**
+   * List of keys to redact from logs (e.g. ['password', 'token']).
+   */
+  redactKeys?: string[];
+
+  /**
+   * Hook to modify or drop logs before they are buffered.
+   * Return null/undefined to drop the log.
+   */
+  beforeSend?: (log: LogEntry) => LogEntry | null | boolean;
 }

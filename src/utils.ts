@@ -1,9 +1,14 @@
 import { LogContext } from './types';
 
-export function safeStringify(obj: any): string {
+export function safeStringify(obj: any, indent?: number): string {
   const cache = new Set();
   try {
     return JSON.stringify(obj, (key, value) => {
+      // Handle BigInt
+      if (typeof value === 'bigint') {
+        return value.toString();
+      }
+      // Circular reference check
       if (typeof value === 'object' && value !== null) {
         if (cache.has(value)) {
           return '[Circular]';
@@ -11,10 +16,39 @@ export function safeStringify(obj: any): string {
         cache.add(value);
       }
       return value;
-    });
+    }, indent);
   } catch (e) {
     return '[Stringify Error]';
   }
+}
+
+export function redactObject(obj: any, keysToRedact: string[], depth = 0, maxDepth = 8): any {
+  if (depth > maxDepth) {
+    return '[Max Depth Reached]';
+  }
+  if (!obj || typeof obj !== 'object') {
+    return obj;
+  }
+  
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => redactObject(item, keysToRedact, depth + 1, maxDepth));
+  }
+
+  // Handle objects
+  const newObj: any = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      if (keysToRedact.includes(key.toLowerCase())) {
+        newObj[key] = '[REDACTED]';
+      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+        newObj[key] = redactObject(obj[key], keysToRedact, depth + 1, maxDepth);
+      } else {
+        newObj[key] = obj[key];
+      }
+    }
+  }
+  return newObj;
 }
 
 export interface StackFrame {

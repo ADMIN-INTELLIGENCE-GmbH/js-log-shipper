@@ -3,7 +3,7 @@ import { errorToContext, getSourceFromStack, safeStringify } from './utils';
 
 export interface InstrumentationConfig {
   console?: boolean;
-  consoleLevels?: ('debug' | 'info' | 'warn' | 'error')[];
+  consoleLevels?: ('debug' | 'info' | 'warn' | 'error' | 'log' | 'dir')[];
   windowError?: boolean;
   unhandledRejection?: boolean;
 }
@@ -17,7 +17,7 @@ export class Instrumentation {
     this.logger = logger;
     this.config = {
       console: true,
-      consoleLevels: ['error', 'warn'],
+      consoleLevels: ['error', 'warn'], // Default to only critical logs to reduce noise
       windowError: true,
       unhandledRejection: true,
       ...config,
@@ -109,8 +109,12 @@ export class Instrumentation {
         this.originalConsole[level] = (console as any)[level];
 
         (console as any)[level] = (...args: any[]) => {
-          // Call original first
-          this.originalConsole[level].apply(console, args);
+          // Avoid infinite loops: ignore logs from the logger itself
+          const firstArg = args[0];
+          if (typeof firstArg === 'string' && firstArg.startsWith('[Logger]')) {
+             this.originalConsole[level].apply(console, args);
+             return;
+          }
 
           // Format message
           const message = args.map(arg => 
@@ -138,12 +142,24 @@ export class Instrumentation {
           }
 
           // Map console level to log level
-          const logLevel = level === 'warn' ? 'warning' : level;
+          let logLevel = level;
+          if (level === 'warn') logLevel = 'warning';
+          if (level === 'log') logLevel = 'info';
+          if (level === 'dir') logLevel = 'debug';
+
+          // Safe version of args for context
+          const safeArgs = args.map(arg => {
+            try {
+              return JSON.parse(safeStringify(arg));
+            } catch (e) {
+              return '[Circular/Unserializable]';
+            }
+          });
 
           this.logger.log(logLevel as any, message, {
             ...context,
             ...sourceInfo,
-            original_args: args // Store raw args in context just in case
+            original_args: safeArgs 
           });
         };
       }

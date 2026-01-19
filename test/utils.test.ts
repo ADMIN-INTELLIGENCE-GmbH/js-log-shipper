@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseStackTrace, errorToContext, getSourceFromStack } from '../src/utils';
+import { parseStackTrace, errorToContext, getSourceFromStack, safeStringify, redactObject } from '../src/utils';
 
 describe('utils', () => {
   describe('parseStackTrace', () => {
@@ -93,5 +93,40 @@ anonymous@http://localhost:3000/test/utils.test.ts:5:10`;
     it('should return empty object for empty stack', () => {
       expect(getSourceFromStack('')).toEqual({});
     });
+  });
+});
+
+describe('security utils', () => {
+  it('safeStringify should handle circular references', () => {
+    const obj: any = { a: 1 };
+    obj.self = obj;
+    
+    const str = safeStringify(obj);
+    expect(str).toContain('"[Circular]"');
+    expect(str).toContain('"a":1');
+  });
+
+  it('safeStringify should handle BigInt', () => {
+    const obj = { val: BigInt(123) };
+    const str = safeStringify(obj);
+    expect(str).toContain('"val":"123"');
+  });
+
+  it('redactObject should hide sensitive keys', () => {
+    const obj = {
+      username: 'john',
+      password: 'secret123',
+      nested: {
+        token: 'xyz-token',
+        public: 'visible'
+      }
+    };
+    
+    const redacted = redactObject(obj, ['password', 'token']);
+    
+    expect(redacted.username).toBe('john');
+    expect(redacted.password).toBe('[REDACTED]');
+    expect(redacted.nested.token).toBe('[REDACTED]');
+    expect(redacted.nested.public).toBe('visible');
   });
 });

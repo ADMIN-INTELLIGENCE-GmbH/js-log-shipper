@@ -112,4 +112,56 @@ describe('Logger', () => {
     logger.info('Duplicate message'); // Should be accepted now
     expect((logger as any).buffer).toHaveLength(2);
   });
+
+  it('should support global context', () => {
+    logger.setGlobalContext({ app_version: '1.0.0' });
+    logger.setUser('user-123');
+
+    logger.info('Test context');
+    
+    const entry = (logger as any).buffer[0];
+    expect(entry.context).toMatchObject({
+      app_version: '1.0.0',
+      user_id: 'user-123',
+    });
+  });
+
+  it('should run beforeSend hook', () => {
+    (Logger as any).instance = undefined;
+    logger = Logger.init({
+      ...config,
+      beforeSend: (log) => {
+        if (log.message.includes('Ignore')) return null;
+        log.message = '[Modified] ' + log.message;
+        return log;
+      }
+    });
+
+    logger.info('Ignore me');
+    expect((logger as any).buffer).toHaveLength(0);
+
+    logger.info('Keep me');
+    expect((logger as any).buffer).toHaveLength(1);
+    expect((logger as any).buffer[0].message).toBe('[Modified] Keep me');
+  });
+
+  it('should respect maxBufferSize', () => {
+    (Logger as any).instance = undefined;
+    logger = Logger.init({
+      ...config,
+      maxBufferSize: 3,
+      batchSize: 10, // Don't flush automatically yet
+    });
+
+    logger.info('1');
+    logger.info('2');
+    logger.info('3');
+    expect((logger as any).buffer).toHaveLength(3);
+
+    logger.info('4');
+    expect((logger as any).buffer).toHaveLength(3);
+    // Should drop '1' (oldest) and keep '2', '3', '4'
+    expect((logger as any).buffer[0].message).toBe('2');
+    expect((logger as any).buffer[2].message).toBe('4');
+  });
 });

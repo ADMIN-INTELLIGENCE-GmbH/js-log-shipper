@@ -1,5 +1,6 @@
 import { LoggerConfig, LogEntry, LogLevel, LogContext } from './types';
 import { Transport } from './Transport';
+import { redactObject } from './utils';
 
 export class Logger {
   private config: LoggerConfig;
@@ -9,6 +10,7 @@ export class Logger {
   private static instance: Logger;
   private recentLogs: Map<string, number> = new Map();
   private isFlushing = false;
+  private globalContext: LogContext = {};
 
   constructor(config: LoggerConfig) {
     this.config = {
@@ -19,6 +21,7 @@ export class Logger {
       channel: 'javascript',
       deduplication: false,
       deduplicationWindow: 1000,
+      maxBufferSize: 1000,
       ...config,
     };
     this.transport = new Transport(this.config);
@@ -39,6 +42,21 @@ export class Logger {
       throw new Error('Logger not initialized. Call Logger.init() first.');
     }
     return Logger.instance;
+  }
+
+  public setGlobalContext(context: LogContext): void {
+    this.globalContext = {
+      ...this.globalContext,
+      ...context,
+    };
+  }
+
+  public setUser(userId: string | number): void {
+    this.setGlobalContext({ user_id: userId });
+  }
+
+  public clearGlobalContext(): void {
+    this.globalContext = {};
   }
 
   public log(level: LogLevel, message: string, context: LogContext = {}): void {
@@ -62,10 +80,21 @@ export class Logger {
       }
     }
 
-    const entry: LogEntry = {
+    // Redact context if needed
+    let safeContext = context;
+    if (this.config.redactKeys && this.config.redactKeys.length > 0) {
+      safeContext = redactObject(context, this.config.redactKeys);
+    }
+
+    const mergedContext = {
+      ...this.globalContext,
+      ...safeContext
+    };
+
+    let entry: LogEntry = {
       level,
       message,
-      context,
+      context: mergedContext,
       channel: this.config.channel,
       datetime: new Date().toISOString(),
       request_url: typeof window !== 'undefined' ? window.location.href : undefined,
@@ -73,7 +102,21 @@ export class Logger {
       referrer: typeof document !== 'undefined' ? document.referrer : undefined,
     };
 
+    if (this.config.beforeSend) {
+      const processed = this.config.beforeSend(entry);
+      if (!processed) return; // Drop log
+      if (typeof processed === 'object') {
+        entry = processed as LogEntry;
+      }
+    }
+
     this.buffer.push(entry);
+
+    // Enforce max buffer size
+    const maxBuffer = this.config.maxBufferSize ?? 1000;
+    while (this.buffer.length > maxBuffer) {
+      this.buffer.shift();
+    }
 
     if (this.buffer.length >= (this.config.batchSize ?? 10)) {
       this.flush();

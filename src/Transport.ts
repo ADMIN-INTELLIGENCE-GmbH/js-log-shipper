@@ -1,4 +1,5 @@
 import { LogEntry, LoggerConfig } from './types';
+import { safeStringify } from './utils';
 
 export class Transport {
   private config: LoggerConfig;
@@ -25,7 +26,7 @@ export class Transport {
             'Accept': 'application/json',
             'X-Project-Key': this.config.apiKey,
           },
-          body: JSON.stringify({ logs }),
+          body: safeStringify({ logs }),
           keepalive: true,
           signal: controller.signal,
         });

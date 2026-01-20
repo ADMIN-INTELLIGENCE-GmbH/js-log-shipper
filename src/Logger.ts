@@ -22,6 +22,7 @@ export class Logger {
       deduplication: false,
       deduplicationWindow: 1000,
       maxBufferSize: 1000,
+      suppressBenignWarnings: true,
       ...config,
     };
     this.transport = new Transport(this.config);
@@ -61,6 +62,11 @@ export class Logger {
 
   public log(level: LogLevel, message: string, context: LogContext = {}): void {
     if (!this.config.enabled) return;
+
+    // Filter benign browser warnings before processing
+    if (this.config.suppressBenignWarnings && this.isBenignWarning(message, context)) {
+      return;
+    }
 
     if (this.config.deduplication) {
       const fingerprint = this.generateFingerprint(level, message, context);
@@ -223,5 +229,40 @@ export class Logger {
         this.recentLogs.delete(key);
       }
     }
+  }
+
+  private isBenignWarning(message: string, context: LogContext): boolean {
+    const benignPatterns = [
+      // ResizeObserver is a benign browser behavior with no functional impact
+      /ResizeObserver loop completed with undelivered notifications/i,
+      /ResizeObserver loop limit exceeded/i,
+      
+      // Generic cross-origin script errors that provide no useful information
+      /^Script error\.?$/i,
+      
+      // Non-Error promise rejections with no useful information
+      /Non-Error promise rejection captured with value: undefined/i,
+      /Non-Error promise rejection captured with keys: /i,
+    ];
+
+    // Check message against all benign patterns
+    if (benignPatterns.some(pattern => pattern.test(message))) {
+      return true;
+    }
+
+    // Also check in context.exception or context.error if present
+    if (context) {
+      const exceptionMessage = 
+        (context.exception as any)?.message || 
+        (context.error as any)?.message || 
+        context.errorMessage;
+      
+      if (typeof exceptionMessage === 'string' && 
+          benignPatterns.some(pattern => pattern.test(exceptionMessage))) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

@@ -164,4 +164,75 @@ describe('Logger', () => {
     expect((logger as any).buffer[0].message).toBe('2');
     expect((logger as any).buffer[2].message).toBe('4');
   });
+
+  it('should filter benign ResizeObserver warnings by default', () => {
+    logger.error('ResizeObserver loop completed with undelivered notifications');
+    logger.error('ResizeObserver loop limit exceeded');
+    
+    expect((logger as any).buffer).toHaveLength(0);
+  });
+
+  it('should filter generic "Script error." messages', () => {
+    logger.error('Script error.');
+    logger.error('Script error');
+    
+    expect((logger as any).buffer).toHaveLength(0);
+  });
+
+  it('should filter non-error promise rejections', () => {
+    logger.error('Non-Error promise rejection captured with value: undefined');
+    logger.error('Non-Error promise rejection captured with keys: somekey');
+    
+    expect((logger as any).buffer).toHaveLength(0);
+  });
+
+  it('should check for benign warnings in context.exception', () => {
+    logger.error('Something went wrong', {
+      exception: { message: 'ResizeObserver loop completed with undelivered notifications' }
+    });
+    
+    expect((logger as any).buffer).toHaveLength(0);
+  });
+
+  it('should allow disabling benign warning suppression', () => {
+    (Logger as any).instance = undefined;
+    logger = Logger.init({
+      ...config,
+      suppressBenignWarnings: false,
+      batchSize: 10,
+    });
+
+    logger.error('ResizeObserver loop completed with undelivered notifications');
+    logger.error('Script error.');
+    
+    expect((logger as any).buffer).toHaveLength(2);
+  });
+
+  it('should filter benign warnings before beforeSend hook', () => {
+    const beforeSendMock = vi.fn((log) => log);
+    
+    (Logger as any).instance = undefined;
+    logger = Logger.init({
+      ...config,
+      beforeSend: beforeSendMock,
+      batchSize: 10,
+    });
+
+    logger.error('ResizeObserver loop completed with undelivered notifications');
+    logger.error('Real error message');
+    
+    // beforeSend should only be called for the real error (benign filtered before it)
+    expect(beforeSendMock).toHaveBeenCalledTimes(1);
+    expect(beforeSendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Real error message' })
+    );
+  });
+
+  it('should not filter warnings that partially match benign patterns', () => {
+    logger.error('This is a real error about ResizeObserver usage in code');
+    logger.error('Script error occurred in my application');
+    
+    // These should NOT be filtered because they're not exact matches
+    expect((logger as any).buffer).toHaveLength(2);
+  });
 });

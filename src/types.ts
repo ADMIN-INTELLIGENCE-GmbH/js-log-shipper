@@ -100,4 +100,13 @@ export interface LoggerConfig {
    * Return null/undefined to drop the log.
    */
   beforeSend?: (log: LogEntry) => LogEntry | null | boolean;
+
+  /**
+   * Whether to suppress benign browser warnings automatically. Defaults to true.
+   * When enabled, filters out common non-actionable browser warnings like:
+   * - ResizeObserver loop notifications
+   * - Generic "Script error." messages
+   * - Non-Error promise rejections with undefined values
+   */
+  suppressBenignWarnings?: boolean;
 }

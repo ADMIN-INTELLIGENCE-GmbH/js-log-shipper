@@ -1,4 +1,5 @@
 import { Logger } from './Logger';
+import { LogLevel } from './types';
 import { errorToContext, getSourceFromStack, safeStringify } from './utils';
 
 export interface InstrumentationConfig {
@@ -142,7 +143,7 @@ export class Instrumentation {
           }
 
           // Map console level to log level
-          let logLevel = level;
+          let logLevel: LogLevel = level as LogLevel;
           if (level === 'warn') logLevel = 'warning';
           if (level === 'log') logLevel = 'info';
           if (level === 'dir') logLevel = 'debug';

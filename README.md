@@ -25,6 +25,7 @@ This package is designed to work with [**Logger**](https://github.com/ADMIN-INTE
 ## Features
 
 - **Automatic Instrumentation**: Automatically captures `console.error`, `console.warn`, `window.onerror`, and `window.onunhandledrejection`. (Configurable to include `console.log`, `console.debug`, etc.)
+- **Benign Warning Filtering**: Automatically filters out common non-actionable browser warnings like ResizeObserver notifications and generic script errors.
 - **Resilient**: Buffers logs when offline or failing, and retries with exponential backoff.
 - **Batched Shipping**: Sends logs in chunks to reduce network overhead.
 - **Smart Context**: Automatically captures current URL, User Agent, and Stack Traces.
@@ -183,6 +184,26 @@ init({
   }
 });
 ```
+
+### Benign Warning Suppression
+
+By default, the logger automatically filters out common benign browser warnings that clutter logs without providing actionable information. This feature is enabled by default but can be disabled if needed.
+
+**Filtered Warnings:**
+- **ResizeObserver loop completed with undelivered notifications** — A benign browser behavior that occurs when ResizeObserver callbacks trigger layout changes. Has no functional impact.
+- **Script error.** — Generic cross-origin script errors that provide no useful debugging information.
+- **Non-Error promise rejection captured with value: undefined** — Promise rejections with no error object or useful context.
+
+To disable this feature (and log all warnings):
+
+```typescript
+init({
+  // ...
+  suppressBenignWarnings: false
+});
+```
+
+> **Note:** The internal benign warning filter runs *before* the `beforeSend` hook, so `beforeSend` will only receive logs that pass this filter (when enabled). This allows you to add your own custom filtering logic on top of the built-in filtering.
 
 ## Log Payload
 

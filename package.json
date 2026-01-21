@@ -1,6 +1,6 @@
 {
   "name": "@adminintelligence/js-log-shipper",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "description": "JavaScript client for the Logger application",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

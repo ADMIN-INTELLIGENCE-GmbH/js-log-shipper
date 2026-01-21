@@ -24,6 +24,11 @@ export class Logger {
       maxBufferSize: 1000,
       ...config,
     };
+
+    if (this.isHostDisabled()) {
+      this.config.enabled = false;
+    }
+
     this.transport = new Transport(this.config);
 
     if (this.config.enabled) {
@@ -59,8 +64,46 @@ export class Logger {
     this.globalContext = {};
   }
 
+  private shouldIgnore(message: string): boolean {
+    if (!this.config.ignorePatterns || this.config.ignorePatterns.length === 0) {
+      return false;
+    }
+
+    return this.config.ignorePatterns.some(pattern => {
+      if (typeof pattern === 'string') {
+        return message.includes(pattern);
+      }
+      if (pattern instanceof RegExp) {
+        return pattern.test(message);
+      }
+      return false;
+    });
+  }
+
+  private isHostDisabled(): boolean {
+    if (typeof window === 'undefined' || !this.config.disabledHosts || this.config.disabledHosts.length === 0) {
+      return false;
+    }
+
+    const hostname = window.location.hostname;
+
+    return this.config.disabledHosts.some(pattern => {
+      if (typeof pattern === 'string') {
+        return hostname === pattern;
+      }
+      if (pattern instanceof RegExp) {
+        return pattern.test(hostname);
+      }
+      return false;
+    });
+  }
+
   public log(level: LogLevel, message: string, context: LogContext = {}): void {
     if (!this.config.enabled) return;
+
+    if (this.shouldIgnore(message)) {
+      return;
+    }
 
     if (this.config.deduplication) {
       const fingerprint = this.generateFingerprint(level, message, context);

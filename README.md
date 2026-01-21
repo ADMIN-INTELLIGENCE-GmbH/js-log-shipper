@@ -83,8 +83,36 @@ Logger.getInstance().setUser(12345);
 
 // To clear (e.g., on logout)
 Logger.getInstance().clearGlobalContext();
-| `maxBufferSize` | `number` | `1000` | Max number of logs to keep in memory (drops oldest) |
-| `redactKeys` | `string[]` | `[]` | Keys to redact from context (e.g. `['password']`) |
+```
+
+### Ignoring Noisy Logs
+
+Sometimes 3rd party scripts or specific browser errors can be noisy and irrelevant. You can ignore them using `ignorePatterns`.
+
+```typescript
+init({
+  // ...
+  ignorePatterns: [
+    'Network Error',
+    /AxiosError/,
+    /ResizeObserver loop limit exceeded/
+  ]
+});
+```
+
+### Disabling on Specific Hosts
+
+You can completely disable the logger on specific environments (e.g. localhost, test servers) by using `disabledHosts`.
+
+```typescript
+init({
+  // ...
+  disabledHosts: [
+    'localhost',
+    '127.0.0.1',
+    /\.test$/
+  ]
+});
 ```
 
 ### Global Context
@@ -137,6 +165,8 @@ init({
 | `retries` | `number` | `3` | Attempts to retry failed requests |
 | `deduplication` | `boolean` | `false` | Enable client-side deduplication |
 | `deduplicationWindow` | `number` | `1000` | Time window (ms) for deduplication |
+| `ignorePatterns` | `(string \| RegExp)[]` | `[]` | List of string patterns or Regex to ignore |
+| `disabledHosts` | `(string \| RegExp)[]` | `[]` | List of hostnames to disable logging on |
 
 ### Instrumentation Options
 

@@ -83,6 +83,19 @@ export interface LoggerConfig {
   redactKeys?: string[];
 
   /**
+   * List of string patterns or Regex to ignore.
+   * Logs matching the message or any part of the content will be dropped.
+   */
+  ignorePatterns?: (string | RegExp)[];
+
+  /**
+   * List of hostnames (strings or Regex) where logging should be thoroughly disabled.
+   * Checks against window.location.hostname.
+   * e.g. ['localhost', '127.0.0.1', /\.test$/]
+   */
+  disabledHosts?: (string | RegExp)[];
+
+  /**
    * Hook to modify or drop logs before they are buffered.
    * Return null/undefined to drop the log.
    */
